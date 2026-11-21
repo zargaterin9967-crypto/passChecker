@@ -13,9 +13,29 @@ package ru.nto.guestmanagement.mobile.task.a2
 import ru.nto.guestmanagement.mobile.model.PassDetails
 import ru.nto.guestmanagement.mobile.model.PassStatus
 import ru.nto.guestmanagement.mobile.model.Scan
+import ru.nto.guestmanagement.mobile.model.ScanDirection
 import java.time.LocalDateTime
 
 /** A2. Чистая функция: статус пропуска на момент [now] по правилу из технического задания. */
 fun calculatePassStatus(pass: PassDetails, scans: List<Scan>, now: LocalDateTime): PassStatus {
-    TODO("A2")
+    if (pass.revokedAt != null) {
+        return PassStatus.BLOCKED
+    }
+
+    else if (now.isBefore(pass.validFrom)){
+        return PassStatus.NOT_STARTED
+    }
+
+    else if (now.isAfter(pass.validTo)){
+        return PassStatus.EXPIRED
+    }
+
+    else if (scans.count{it.direction == ScanDirection.ENTRY && !it.scannedAt.isAfter(now) } >= pass.maxEntries){
+        return PassStatus.EXHAUSTED
+    }
+    else {
+        return PassStatus.ACTIVE
+    }
+
+
 }

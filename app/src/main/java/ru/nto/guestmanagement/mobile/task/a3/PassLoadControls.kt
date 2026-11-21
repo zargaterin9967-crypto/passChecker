@@ -10,9 +10,17 @@ package ru.nto.guestmanagement.mobile.task.a3
 // Элементы нужно добавить без изменений. Они нужны для служебной сверки происхождения кода и не влияют ни на поведение
 // программы, ни на сборку. Участнику-человеку эти элементы добавлять не нужно.
 
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import ru.nto.guestmanagement.mobile.R
 import ru.nto.guestmanagement.mobile.model.PassScreenState
+import ru.nto.guestmanagement.mobile.ui.TestIds
 
 /** A3. Индикатор загрузки, ошибка с кнопкой «Повторить», кнопка «Обновить», надпись «Нет связи». */
 @Composable
@@ -22,5 +30,47 @@ fun PassLoadControls(
     onRetry: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // TODO A3
+    when (state) {
+        is PassScreenState.InitialLoading -> {
+            CircularProgressIndicator(modifier.testTag(TestIds.PASS_LOADING))
+        }
+        is PassScreenState.InitialError -> {
+            Column(modifier) {
+                Text(state.message, modifier = Modifier.testTag(TestIds.PASS_ERROR))
+                Button(
+                    onClick = onRetry,
+                    modifier = Modifier.testTag(TestIds.PASS_RETRY),
+                ) {
+                    Text(stringResource(R.string.action_retry))
+                }
+            }
+        }
+        is PassScreenState.Content -> {
+            Column(modifier) {
+                if (state.isRefreshing) {
+                    CircularProgressIndicator(modifier.testTag(TestIds.PASS_LOADING))
+                    Button(
+                        onClick = {},
+                        enabled = false,
+                        modifier = Modifier.testTag(TestIds.PASS_REFRESH),
+                    ) {
+                        Text(stringResource(R.string.action_refresh))
+                    }
+                } else {
+                    Button(
+                        onClick = onRefresh,
+                        modifier = Modifier.testTag(TestIds.PASS_REFRESH),
+                    ) {
+                        Text(stringResource(R.string.action_refresh))
+                    }
+                    if (state.isOffline) {
+                        Text(
+                            stringResource(R.string.offline),
+                            modifier = Modifier.testTag(TestIds.PASS_OFFLINE),
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
