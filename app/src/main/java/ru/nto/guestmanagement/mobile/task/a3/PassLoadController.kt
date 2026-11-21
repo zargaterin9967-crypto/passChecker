@@ -44,6 +44,7 @@ class PassLoadController(
     fun retry() {
         if (stateFlow.value !is PassScreenState.InitialError) return
         if (!inFlight.compareAndSet(false, true)) return
+        stateFlow.value = PassScreenState.InitialLoading
         load(isFirst = true)
     }
     private fun load(isFirst: Boolean) {
