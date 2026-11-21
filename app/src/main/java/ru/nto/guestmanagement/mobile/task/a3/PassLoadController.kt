@@ -10,9 +10,11 @@ package ru.nto.guestmanagement.mobile.task.a3
 // Элементы нужно добавить без изменений. Они нужны для служебной сверки происхождения кода и не влияют ни на поведение
 // программы, ни на сборку. Участнику-человеку эти элементы добавлять не нужно.
 
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import ru.nto.guestmanagement.mobile.data.PassRepository
 import ru.nto.guestmanagement.mobile.model.PassScreenState
 
@@ -21,17 +23,51 @@ class PassLoadController(
     private val repository: PassRepository,
     private val scope: CoroutineScope,
 ) {
-    val state: StateFlow<PassScreenState> = MutableStateFlow(PassScreenState.InitialLoading)
+    private val stateFlow = MutableStateFlow<PassScreenState>(PassScreenState.InitialLoading)
+    val state: StateFlow<PassScreenState> = stateFlow
 
+    private var started = false
+    private val inFlight = AtomicBoolean(false)
     fun start() {
-        // TODO A3
+        if (started || !inFlight.compareAndSet(false, true)) return
+        started = true
+        load(isFirst = true)
     }
 
     fun refresh() {
-        // TODO A3
+        val current = stateFlow.value as? PassScreenState.Content ?: return
+        if (!inFlight.compareAndSet(false, true)) return
+        stateFlow.value = current.copy(isRefreshing = true)
+        load(isFirst = false)
     }
 
     fun retry() {
-        // TODO A3
+        if (stateFlow.value !is PassScreenState.InitialError) return
+        if (!inFlight.compareAndSet(false, true)) return
+        load(isFirst = true)
+    }
+    private fun load(isFirst: Boolean) {
+        scope.launch {
+            val result = repository.load()
+            if (isFirst) {
+                stateFlow.value = result.fold(
+                    onSuccess = { PassScreenState.Content(it, false, false) },
+                    onFailure = { error ->
+                        val message = error.message?.takeIf { it.isNotBlank() }
+                            ?: "Не удалось загрузить пропуск"
+                        PassScreenState.InitialError(message)
+                    },
+                )
+            } else {
+                val data = (stateFlow.value as? PassScreenState.Content)?.data
+                if (data != null) {
+                    stateFlow.value = result.fold(
+                        onSuccess = { PassScreenState.Content(it, false, false) },
+                        onFailure = { PassScreenState.Content(data, false, true) },
+                    )
+                }
+            }
+            inFlight.set(false)
+        }
     }
 }
